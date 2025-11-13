@@ -1,48 +1,69 @@
 """
-Database Schemas
+Database Schemas for PT Padud Jaya Putera Accounting System
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
-
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+Each Pydantic model maps to a MongoDB collection: class name lowercased.
+Example: User -> "user"
 """
 
-from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Literal, List
+from pydantic import BaseModel, Field, EmailStr
+from datetime import date
 
-# Example schemas (replace with your own):
+# Core entities
+class Division(BaseModel):
+    name: str
+    code: str = Field(..., description="Short unique code")
+    is_active: bool = True
 
 class User(BaseModel):
-    """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
-    """
-    name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+    username: str
+    email: EmailStr
+    hashed_password: str
+    role: Literal["SUPER_ADMIN", "ADMIN_DIVISI"]
+    division_id: Optional[str] = Field(None, description="Only for ADMIN_DIVISI")
+    is_active: bool = True
 
-class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
+class Account(BaseModel):
+    code: str = Field(..., description="COA code")
+    name: str
+    type: Literal["asset", "liability", "equity", "revenue", "expense"]
+    is_active: bool = True
 
-# Add your own schemas here:
-# --------------------------------------------------
+# Finance entries
+class CashEntry(BaseModel):
+    date: date
+    division_id: str
+    type: Literal["penerimaan", "pengeluaran"]
+    account_code: str
+    amount: float = Field(..., gt=0)
+    description: Optional[str] = None
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+class ReceivableEntry(BaseModel):
+    date: date
+    division_id: str
+    status: Literal["baru", "tertagih", "macet"]
+    customer: str
+    amount: float = Field(..., gt=0)
+    description: Optional[str] = None
+
+class PayableEntry(BaseModel):
+    date: date
+    division_id: str
+    status: Literal["baru", "dibayar"]
+    supplier: str
+    amount: float = Field(..., gt=0)
+    description: Optional[str] = None
+
+class ActivityLog(BaseModel):
+    actor_user_id: str
+    action: str
+    target_module: str
+    payload_summary: Optional[str] = None
+
+# Notification
+class Notification(BaseModel):
+    title: str
+    message: str
+    level: Literal["info", "success", "warning", "error"] = "info"
+    audience: Literal["all", "division"] = "all"
+    division_id: Optional[str] = None
